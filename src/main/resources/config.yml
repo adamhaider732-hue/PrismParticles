@@ -1,0 +1,44 @@
+# PrismParticles - Crate particle configuration
+# Particle types: FLAME, VILLAGER_HAPPY, ENCHANT, WITCH, TOTEM_OF_UNDYING, REDSTONE
+# Colors are used for the rising dust trail (hex format)
+
+crates:
+  common:
+    world: spawnworld
+    x: 60.0
+    y: 74.0
+    z: 26.0
+    particle: FLAME
+    color: "#FFFFFF"
+
+  uncommon:
+    world: spawnworld
+    x: 57.0
+    y: 74.0
+    z: 23.0
+    particle: VILLAGER_HAPPY
+    color: "#55FF55"
+
+  rare:
+    world: spawnworld
+    x: 63.0
+    y: 74.0
+    z: 23.0
+    particle: ENCHANT
+    color: "#55FFFF"
+
+  epic:
+    world: spawnworld
+    x: 62.0
+    y: 74.0
+    z: 19.0
+    particle: WITCH
+    color: "#FF55FF"
+
+  legendary:
+    world: spawnworld
+    x: 58.0
+    y: 74.0
+    z: 19.0
+    particle: TOTEM_OF_UNDYING
+    color: "#FFAA00"
