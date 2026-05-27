@@ -109,9 +109,9 @@ public class PrismParticles extends JavaPlugin {
                     double pz = center.getZ() + Math.sin(orbitAngle) * radius;
                     Location pLoc = new Location(world, px, py, pz);
 
-                    if (crate.particle == Particle.REDSTONE) {
+                    if (crate.particle == Particle.DUST) {
                         Particle.DustOptions dust = new Particle.DustOptions(crate.color, 1.2f);
-                        world.spawnParticle(Particle.REDSTONE, pLoc, 1, 0, 0, 0, 0, dust);
+                        world.spawnParticle(Particle.DUST, pLoc, 1, 0, 0, 0, 0, dust);
                     } else {
                         world.spawnParticle(crate.particle, pLoc, 1, 0, 0, 0, 0);
                     }
@@ -121,7 +121,7 @@ public class PrismParticles extends JavaPlugin {
                 Particle.DustOptions risingDust = new Particle.DustOptions(crate.color, 0.8f);
                 double riseY = center.getY() + (Math.sin(angle * 2) * 0.3);
                 Location riseLoc = new Location(world, center.getX(), riseY, center.getZ());
-                world.spawnParticle(Particle.REDSTONE, riseLoc, 2, 0.15, 0.1, 0.15, 0, risingDust);
+                world.spawnParticle(Particle.DUST, riseLoc, 2, 0.15, 0.1, 0.15, 0, risingDust);
             }
         }, 0L, 3L);
     }
