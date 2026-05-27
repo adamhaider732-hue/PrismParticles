@@ -1,6 +1,6 @@
 name: PrismParticles
 version: '1.0.0'
 main: online.prismsmp.particles.PrismParticles
-api-version: '1.21'
+api-version: '1.21.1'
 author: PrismSMP
 description: Particle effects around crates
