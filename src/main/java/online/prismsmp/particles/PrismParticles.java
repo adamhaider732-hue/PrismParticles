@@ -6,7 +6,6 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -17,46 +16,54 @@ public class PrismParticles extends JavaPlugin {
 
     private BukkitTask particleTask;
     private double angle = 0;
+    private List<CrateEntry> crates;
 
     private static class CrateEntry {
-        String world;
-        double x, y, z;
-        Particle particle;
-        Color color;
-        String name;
+        final String world;
+        final double x, y, z;
+        final String particleName;
+        final int r, g, b;
 
-        CrateEntry(String name, String world, double x, double y, double z, Particle particle, Color color) {
-            this.name = name;
+        CrateEntry(String world, double x, double y, double z, String particleName, int r, int g, int b) {
             this.world = world;
             this.x = x;
             this.y = y;
             this.z = z;
-            this.particle = particle;
-            this.color = color;
+            this.particleName = particleName;
+            this.r = r;
+            this.g = g;
+            this.b = b;
         }
     }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        startParticles();
+        crates = loadCrates();
+        if (crates.isEmpty()) {
+            getLogger().warning("No crates configured in config.yml!");
+        } else {
+            getLogger().info("Loaded " + crates.size() + " crates.");
+            startParticles();
+        }
         getLogger().info("PrismParticles enabled!");
     }
 
     @Override
     public void onDisable() {
-        if (particleTask != null) particleTask.cancel();
+        if (particleTask != null) {
+            particleTask.cancel();
+        }
         getLogger().info("PrismParticles disabled.");
     }
 
     private List<CrateEntry> loadCrates() {
-        FileConfiguration config = getConfig();
-        List<CrateEntry> crates = new ArrayList<>();
-        ConfigurationSection cratesSection = config.getConfigurationSection("crates");
-        if (cratesSection == null) return crates;
+        List<CrateEntry> list = new ArrayList<>();
+        ConfigurationSection section = getConfig().getConfigurationSection("crates");
+        if (section == null) return list;
 
-        for (String key : cratesSection.getKeys(false)) {
-            ConfigurationSection c = cratesSection.getConfigurationSection(key);
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection c = section.getConfigurationSection(key);
             if (c == null) continue;
             try {
                 String world = c.getString("world", "spawnworld");
@@ -64,77 +71,62 @@ public class PrismParticles extends JavaPlugin {
                 double y = c.getDouble("y");
                 double z = c.getDouble("z");
                 String particleName = c.getString("particle", "FLAME");
-                String colorHex = c.getString("color", "#FFFFFF");
-
-                Particle particle;
-                try {
-                    particle = Particle.valueOf(particleName);
-                } catch (IllegalArgumentException e) {
-                    getLogger().warning("Unknown particle '" + particleName + "' for crate " + key + ", defaulting to FLAME");
-                    particle = Particle.FLAME;
-                }
-
-                Color color = hexToColor(colorHex);
-                crates.add(new CrateEntry(key, world, x, y, z, particle, color));
+                String hex = c.getString("color", "#FFFFFF").replace("#", "");
+                int r = Integer.parseInt(hex.substring(0, 2), 16);
+                int g = Integer.parseInt(hex.substring(2, 4), 16);
+                int b = Integer.parseInt(hex.substring(4, 6), 16);
+                list.add(new CrateEntry(world, x, y, z, particleName, r, g, b));
+                getLogger().info("Loaded crate: " + key + " at " + world + " " + x + "," + y + "," + z);
             } catch (Exception e) {
                 getLogger().warning("Failed to load crate '" + key + "': " + e.getMessage());
             }
         }
-        return crates;
+        return list;
     }
 
     private void startParticles() {
-        List<CrateEntry> crates = loadCrates();
-        if (crates.isEmpty()) {
-            getLogger().warning("No crates configured in config.yml!");
-            return;
-        }
+        particleTask = Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
+            @Override
+            public void run() {
+                angle += 0.1;
+                if (angle > Math.PI * 2) angle -= Math.PI * 2;
 
-        particleTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
-            angle += 0.1;
-            if (angle > Math.PI * 2) angle -= Math.PI * 2;
+                for (CrateEntry crate : crates) {
+                    World world = Bukkit.getWorld(crate.world);
+                    if (world == null) continue;
 
-            for (CrateEntry crate : crates) {
-                World world = Bukkit.getWorld(crate.world);
-                if (world == null) continue;
+                    double cx = crate.x + 0.5;
+                    double cy = crate.y + 0.5;
+                    double cz = crate.z + 0.5;
 
-                Location center = new Location(world, crate.x + 0.5, crate.y + 0.5, crate.z + 0.5);
+                    // 3 orbiting dust particles spaced equally
+                    for (int i = 0; i < 3; i++) {
+                        double a = angle + (i * (Math.PI * 2.0 / 3.0));
+                        double px = cx + Math.cos(a) * 0.8;
+                        double py = cy + 0.5;
+                        double pz = cz + Math.sin(a) * 0.8;
+                        Location loc = new Location(world, px, py, pz);
+                        try {
+                            Particle.DustOptions dust = new Particle.DustOptions(
+                                Color.fromRGB(crate.r, crate.g, crate.b), 1.2f);
+                            world.spawnParticle(Particle.DUST, loc, 1, 0, 0, 0, 0, dust);
+                        } catch (Exception e) {
+                            // silently ignore particle errors
+                        }
+                    }
 
-                // 3 orbiting particles equally spaced
-                for (int i = 0; i < 3; i++) {
-                    double orbitAngle = angle + (i * (Math.PI * 2 / 3));
-                    double radius = 0.8;
-                    double px = center.getX() + Math.cos(orbitAngle) * radius;
-                    double py = center.getY() + 0.5;
-                    double pz = center.getZ() + Math.sin(orbitAngle) * radius;
-                    Location pLoc = new Location(world, px, py, pz);
-
-                    if (crate.particle == Particle.DUST) {
-                        Particle.DustOptions dust = new Particle.DustOptions(crate.color, 1.2f);
-                        world.spawnParticle(Particle.DUST, pLoc, 1, 0, 0, 0, 0, dust);
-                    } else {
-                        world.spawnParticle(crate.particle, pLoc, 1, 0, 0, 0, 0);
+                    // Rising dust from center
+                    try {
+                        double ry = cy + (Math.sin(angle * 2) * 0.3);
+                        Location rise = new Location(world, cx, ry, cz);
+                        Particle.DustOptions risingDust = new Particle.DustOptions(
+                            Color.fromRGB(crate.r, crate.g, crate.b), 0.8f);
+                        world.spawnParticle(Particle.DUST, rise, 2, 0.15, 0.1, 0.15, 0, risingDust);
+                    } catch (Exception e) {
+                        // silently ignore particle errors
                     }
                 }
-
-                // Rising colored dust from center
-                Particle.DustOptions risingDust = new Particle.DustOptions(crate.color, 0.8f);
-                double riseY = center.getY() + (Math.sin(angle * 2) * 0.3);
-                Location riseLoc = new Location(world, center.getX(), riseY, center.getZ());
-                world.spawnParticle(Particle.DUST, riseLoc, 2, 0.15, 0.1, 0.15, 0, risingDust);
             }
         }, 0L, 3L);
-    }
-
-    private Color hexToColor(String hex) {
-        try {
-            hex = hex.replace("#", "");
-            int r = Integer.parseInt(hex.substring(0, 2), 16);
-            int g = Integer.parseInt(hex.substring(2, 4), 16);
-            int b = Integer.parseInt(hex.substring(4, 6), 16);
-            return Color.fromRGB(r, g, b);
-        } catch (Exception e) {
-            return Color.WHITE;
-        }
     }
 }
